@@ -7,6 +7,7 @@ logging.basicConfig(level=logging.INFO)
 def gpu_worker(gpu, q):
     while not q.empty():
         cmd = q.get()
+        cmd.replace("%gpu%", str(gpu))
         logging.info(f"Executing {cmd} on GPU {gpu}")
         status = os.system(cmd)
         if status < 0:
