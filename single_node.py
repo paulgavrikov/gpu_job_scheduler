@@ -2,17 +2,19 @@ import multiprocessing as mp
 import os
 import argparse
 import logging
-logging.basicConfig(level=logging.INFO)
+import coloredlogs
+coloredlogs.install(fmt="%(asctime)s [%(levelname)s] %(name)s: %(message)s")
 
-def gpu_worker(gpu, q):
+def gpu_worker(i, gpu, q):
+    logger = logging.getLogger(f"Worker-{i}@cuda:{gpu}")
     while not q.empty():
-        cmd = q.get()
-        logging.info(f"Executing {cmd} on GPU {gpu}")
+        cmd = q.get().replace("%gpu%", str(gpu))
+        logger.info(f"Executing {cmd} on GPU {gpu}")
         status = os.system(cmd)
         if status < 0:
-            logging.error(f"{cmd} FAILED with status {status}")
+            logger.error(f"{cmd} FAILED with status {status}")
         else:
-            logging.info(f"{cmd} finished with status {status}")
+            logger.info(f"{cmd} finished with status {status}")
 
 
 if __name__ == "__main__":
@@ -36,9 +38,9 @@ if __name__ == "__main__":
     logging.info(f"Queued {commands} commands from {args.command_file}")
 
     processes = []
-    for gpu in args.gpus.split(",") * args.workers_per_gpu:
+    for i, gpu in enumerate(args.gpus.split(",") * args.workers_per_gpu):
         logging.info("Starting worker on GPU %s", gpu)
-        p = mp.Process(target=gpu_worker, args=(gpu, que), daemon=True)
+        p = mp.Process(target=gpu_worker, args=(i, gpu, que), daemon=True)
         p.start()
         processes.append(p)
 
